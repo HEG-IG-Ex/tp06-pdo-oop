@@ -2,22 +2,23 @@
 
 require_once("./dao.php");
 require_once("./table.php");
+require_once("./sommet.php");
 
 // Constante qui défini le nombre d'entrée maximum à afficher sur la pagination.
 define('NOMBRE_PAR_PAGE', 20);
 
 
 //Query variables;
-$base_query = "SELECT som_id, som_nom, som_region, som_altitude FROM sommets WHERE som_id IS NOT NULL ";
+/* $base_query = "SELECT som_id, som_nom, som_region, som_altitude FROM sommets WHERE som_id IS NOT NULL ";
 $filters = [
   ":som_name" => "AND som_nom LIKE :som_name ",
   ":som_region" => "AND som_region LIKE :som_region ",
   ":alt_min" => "AND som_altitude >= :alt_min ",
   ":alt_max" => "AND som_altitude <= :alt_max ",
 ];
+ 
 
-
-$params = [];
+$params = [];*/
 
 // Variables utilisées lors de la recherche.
 $nom = "";
@@ -29,8 +30,7 @@ $sens = "";
 $page = "";
 
 // Variables d'affichage.
-$totalResults = 0;
-$resultat = '';
+
 $erreur = '';
 
 function test_input($data)
@@ -43,29 +43,44 @@ function test_input($data)
 
 if ($_SERVER['REQUEST_METHOD'] == 'GET') {
 
+  $sommets = new Sommet();
+  $sommets->set_pagination(NOMBRE_PAR_PAGE);
+
   if (isset($_GET["nom"]) && !empty($_GET["nom"])) {
     $nom = test_input($_GET["nom"]);
-    $params[":som_name"] = ["%$nom%", $filters[":som_name"]];
+    //$params[":som_name"] = ["%$nom%", $filters[":som_name"]];
+
+    $sommets->filter("som_nom", "'%$nom%'", "LIKE");
   }
   if (isset($_GET["region"]) && !empty($_GET["region"])) {
     $region = test_input($_GET["region"]);
-    $params[":som_region"] = ["%$region%", $filters[":som_region"]];
+    //$params[":som_region"] = ["%$region%", $filters[":som_region"]];
+
+    $sommets->filter("som_region", "'%$region%'", "LIKE");
   }
   if (isset($_GET["alt_min"]) && !empty($_GET["alt_min"]) && is_numeric($_GET["alt_min"])) {
     $alt_min = test_input($_GET["alt_min"]);
-    $params[":alt_min"] = [$alt_min, $filters[":alt_min"]];
+    //$params[":alt_min"] = [$alt_min, $filters[":alt_min"]];
+
+    $sommets->filter("som_altitude", $alt_min, ">=");
   }
   if (isset($_GET["alt_max"]) && !empty($_GET["alt_max"] && is_numeric($_GET["alt_max"]))) {
     $alt_max = test_input($_GET["alt_max"]);
-    $params[":alt_max"] = [$alt_max, $filters[":alt_max"]];
+
+    $sommets->filter("som_altitude", $alt_max, "<=");
   }
   if (isset($_GET["tri"]) && $_GET["sens"]) {
     $field = test_input($_GET["tri"]);
     $sens = test_input($_GET["sens"]);
     $sort = "ORDER BY som_$field " . strtoupper($sens);
+
+    $sommets->sort($field, strtoupper($sens));
   } else {
     $sort = "";
   }
+
+  $sliced_result = $sommets->get_paginate_result(isset($_GET["page"]) ? $_GET["page"] : 1);
+
 }
 
 ?>
@@ -167,10 +182,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     <!-- Pagination de la recherche -->
     <nav aria-label="Page navigation example">
       <ul class="pagination justify-content-center">
-        <?php for ($pageNum = 0; $pageNum < $totalResults / NOMBRE_PAR_PAGE; $pageNum++) { ?>
-          <li class="page-item <?php if ($page == $pageNum + 1) {
-                                  echo 'active';
-                                } ?>">
+        <?php 
+        for ($pageNum = 0; $pageNum < $sommets->get_nb_page(); $pageNum++) {?>
+          <li class="page-item <?php if ($page == $pageNum + 1) {echo 'active';} ?>">
             <button type="submit" name="page" value="<?php echo $pageNum + 1 ?>" class="page-link"><?php echo $pageNum + 1 ?></a>
           </li>
         <?php } ?>
@@ -182,8 +196,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
   <!-- Affiche le résultat de la recherche -->
   <p><?php
       if ($_SERVER['REQUEST_METHOD'] == 'GET') {
-        $rows = fetch_records_pdo($base_query, $params, $sort);
-        generate_table($rows);
+        //$rows = fetch_records_pdo($base_query, $params, $sort);
+        generate_table($sliced_result);
       }
       ?>
   </p>

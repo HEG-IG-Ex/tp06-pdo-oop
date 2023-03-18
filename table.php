@@ -36,6 +36,7 @@ function generate_table($rows){
     echo "</table>";
 }
 
+
        
 
  
